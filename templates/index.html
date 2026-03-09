@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini AI Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+
+<body>
+
+    <div class="chat-wrapper">
+
+        <header class="chat-header">
+            <div class="logo">✨AI Assistant</div>
+        </header>
+
+        <main id="chatBox" class="chat-box">
+            <div class="message bot">
+                <div class="avatar">✨</div>
+                <div class="content">Hello! I'm Gemini. How can I help you today?</div>
+            </div>
+        </main>
+
+        <footer class="chat-input-area">
+            <div class="input-container">
+                <input type="text" id="message" placeholder="Ask Gemini something..." autocomplete="off">
+                <button id="sendBtn" onclick="sendMessage()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        document.getElementById("message").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
+        async function sendMessage() {
+    const input = document.getElementById("message");
+    const button = document.getElementById("sendBtn"); 
+    const message = input.value.trim();
+
+    if (message === "") return;
+
+    const chatBox = document.getElementById("chatBox");
+
+    // 1. Add user message
+    chatBox.innerHTML += `
+        <div class="message user">
+            <div class="avatar">👤</div>
+            <div class="content">${message}</div>
+        </div>
+    `;
+    input.value = "";
+
+    // Disable input while thinking
+    input.disabled = true;
+    if (button) button.disabled = true;
+
+    // 2. Add the Loader Bubble
+    chatBox.innerHTML += `
+        <div class="message bot" id="loadingBubble">
+            <div class="avatar">✨</div>
+            <div class="content">
+                <div class="typing-indicator">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Auto-scroll to show the loader
+    chatBox.scrollTop = chatBox.scrollHeight; 
+
+    try {
+        const response = await fetch("/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: message })
+        });
+
+        const data = await response.json();
+        
+        // Use marked.parse if you have Markdown enabled, otherwise just use data.reply
+        const parsedReply = typeof marked !== 'undefined' ? marked.parse(data.reply) : data.reply;
+
+        // 3. Remove the loader bubble
+        const loader = document.getElementById("loadingBubble");
+        if (loader) loader.remove();
+
+        // 4. Add the actual bot response
+        chatBox.innerHTML += `
+            <div class="message bot">
+                <div class="avatar">✨</div>
+                <div class="content">${parsedReply}</div>
+            </div>
+        `;
+    } catch (error) {
+        // Remove loader if there's an error
+        const loader = document.getElementById("loadingBubble");
+        if (loader) loader.remove();
+        
+        chatBox.innerHTML += `
+            <div class="message bot">
+                <div class="avatar">⚠️</div>
+                <div class="content">Oops! Connection error.</div>
+            </div>
+        `;
+    }
+
+    // 5. Re-enable input
+    input.disabled = false;
+    if (button) button.disabled = false;
+    input.focus();
+
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+    </script>
+
+</body>
+</html>
